@@ -3,7 +3,7 @@
 백북스 시즌 4 〈취향이 만나는 책밤〉 선정도서 아카이브.
 6번의 책밤(501~506회)에 오른 128권 — 선정도서 ★5권, 후보 21권, 참고목록 102권.
 
-**https://jayreyafterdawn.github.io/chaekbam/**
+**https://jayreyafterdawn.github.io/100books_bookery_night/**
 
 - 실물 표지 카드 뷰 / 목록 뷰
 - 주제·상태 필터, 검색
