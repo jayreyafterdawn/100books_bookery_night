@@ -401,7 +401,7 @@ status_chips = (
 
 # ---------------------------------------------------------------- 폰트 서브셋
 from fontTools import subset as ftsubset
-serif_text = "취향이 만나는 책밤" + "".join(mt["topic"] for mt in meetings)
+serif_text = "백북스 시즌4, 책밤 취향이 만나는" + "".join(mt["topic"] for mt in meetings)
 chars = "".join(sorted(set(serif_text.replace(" ", ""))))
 opts = ftsubset.Options()
 opts.flavor = "woff"
@@ -692,7 +692,7 @@ body[data-view="card"] .brow.hit .bcover {{ outline: 3px solid var(--c); outline
     </div>
     <span class="upd-status" id="updStatus" role="status"></span>
     <p class="eyebrow">100BOOKS · Season 4</p>
-    <h1>취향이 만나는 책밤</h1>
+    <h1>백북스 시즌4, 책밤</h1>
     <p class="sub">{len(meetings)}번의 책밤에 오른 {total_books}권 — 선정도서 ★{n_sel}권, 후보 {n_cand}권, 참고목록 {n_ref}권.</p>
     <details class="about">
       <summary>백북스 시즌4 책밤을 기획하며</summary>
