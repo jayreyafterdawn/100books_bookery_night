@@ -662,6 +662,8 @@ body[data-view="card"] .brow.hit .bcover {{ outline: 3px solid var(--c); outline
   border-top: 1px solid var(--grid); letter-spacing: 0.02em;
 }}
 .credit b {{ color: var(--ink2); font-weight: 600; }}
+.credit-ig {{ color: var(--muted); text-decoration: none; }}
+.credit-ig:hover {{ color: var(--ink2); text-decoration: underline; text-underline-offset: 3px; }}
 
 @media (max-width: 640px) {{
   .wrap {{ padding: 14px 12px 40px; }}
@@ -705,7 +707,7 @@ body[data-view="card"] .brow.hit .bcover {{ outline: 3px solid var(--c); outline
   <div class="controls status-row" id="statusChips">{status_chips}</div>
 {"".join(groups_html)}
 
-  <p class="credit"><b>백북스 〈취향이 만나는 책밤〉 아카이브</b> · 501회(2026.3.24)부터</p>
+  <p class="credit"><b>백북스 〈취향이 만나는 책밤〉 아카이브</b> · <a class="credit-ig" href="https://www.instagram.com/100books_bookery_night" target="_blank" rel="noopener">@100books_bookery_night</a></p>
 </div>
 
 <dialog id="tokenDlg">
@@ -882,9 +884,16 @@ body[data-view="card"] .brow.hit .bcover {{ outline: 3px solid var(--c); outline
 """
 
 og = """<meta property="og:type" content="website">
-<meta property="og:title" content="백북스 시즌 4 — 취향이 만나는 책밤">
-<meta property="og:description" content="책밤에 오른 책들 — 선정도서·후보·참고목록 아카이브. 주제·상태 필터와 검색, 실물 표지 카드 뷰.">
+<meta property="og:title" content="백북스 시즌4, 책밤">
+<meta property="og:description" content="취향이 만나는 책밤 — 선정도서·후보·참고목록 아카이브. 주제·상태 필터와 검색, 실물 표지 카드 뷰.">
+<meta property="og:url" content="https://jayreyafterdawn.github.io/100books_bookery_night/">
+<meta property="og:image" content="https://jayreyafterdawn.github.io/100books_bookery_night/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta property="og:locale" content="ko_KR">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="백북스 시즌4, 책밤">
+<meta name="twitter:image" content="https://jayreyafterdawn.github.io/100books_bookery_night/og-image.png">
 """
 full = '<!doctype html>\n<html lang="ko">\n<head>\n<meta charset="utf-8">\n' + og + page + '\n</html>\n'
 with open(OUT, "w") as f:
