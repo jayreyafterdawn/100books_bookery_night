@@ -88,6 +88,16 @@ def norm(t):
 def esc(s):
     return html.escape(s, quote=True)
 
+def classify(b):
+    """'선정' 값을 유연하게 분류 — 노션에서 옵션 이름이 바뀌어도 견디도록.
+    (예: '선정도서 후보'→'후보', '참고목록'→'참고도서')"""
+    v = b.get("선정", "")
+    if "후보" in v:
+        return "cand"
+    if v.startswith("선정"):
+        return "sel"
+    return "ref"  # 참고목록/참고도서/미분류
+
 # ---------------------------------------------------------------- fetch data
 print("노션에서 데이터 읽는 중...")
 meet_schema, meet_rows = query_collection(MEET_COLL, MEET_VIEW)
@@ -145,7 +155,7 @@ for mt in meetings:
     mt["topic"] = DISPLAY_NAMES.get(key, key)
     mt_books = [b for b in books if re.sub(r"\D", "", b.get("회차", "")) == str(mt["no"])]
     mt["books"] = mt_books
-    has_sel = any(b.get("선정") == "선정도서" for b in mt_books)
+    has_sel = any(classify(b) == "sel" for b in mt_books)
     mt["upcoming"] = (not has_sel) and (not mt["date"] or mt["date"] >= today)
 
 meetings = [m for m in meetings if m["books"]]
@@ -313,9 +323,9 @@ DISPLAY = list(reversed(meetings))  # 최신 회차가 위로
 for mt in DISPLAY:
     rows = mt["books"]
     topic_counts[mt["topic"]] = len(rows)
-    sel = [b for b in rows if b.get("선정") == "선정도서"]
-    cand = [b for b in rows if b.get("선정") == "선정도서 후보"]
-    refs = sorted([b for b in rows if b.get("선정") == "참고목록"],
+    sel = [b for b in rows if classify(b) == "sel"]
+    cand = [b for b in rows if classify(b) == "cand"]
+    refs = sorted([b for b in rows if classify(b) == "ref"],
                   key=lambda b: (REL_ORDER.get(b.get("주제 관련성", ""), 0), b["책 제목"]))
     n_sel += len(sel); n_cand += len(cand); n_ref += len(refs)
 
@@ -393,8 +403,8 @@ topic_chips = "".join(
 
 status_chips = (
     f'<button type="button" class="chip gchip" data-status="sel" aria-pressed="true">★ 선정도서 <span class="n">{n_sel}</span></button>'
-    f'<button type="button" class="chip gchip" data-status="cand" aria-pressed="true">선정도서 후보 <span class="n">{n_cand}</span></button>'
-    f'<button type="button" class="chip gchip" data-status="ref" aria-pressed="true">참고목록 <span class="n">{n_ref}</span></button>'
+    f'<button type="button" class="chip gchip" data-status="cand" aria-pressed="true">후보 <span class="n">{n_cand}</span></button>'
+    f'<button type="button" class="chip gchip" data-status="ref" aria-pressed="true">참고도서 <span class="n">{n_ref}</span></button>'
     '<button type="button" class="chip reset" id="allStatusOn">모두 선택</button>'
     '<button type="button" class="chip reset" id="allStatusOff">모두 해제</button>'
     f'<span class="count" id="countLbl"></span>')
@@ -695,7 +705,7 @@ body[data-view="card"] .brow.hit .bcover {{ outline: 3px solid var(--c); outline
     <span class="upd-status" id="updStatus" role="status"></span>
     <p class="eyebrow">100BOOKS · Season 4</p>
     <h1>백북스 시즌4, 책밤</h1>
-    <p class="sub">{len(meetings)}번의 책밤에 오른 {total_books}권 — 선정도서 ★{n_sel}권, 후보 {n_cand}권, 참고목록 {n_ref}권.</p>
+    <p class="sub">{len(meetings)}번의 책밤에 오른 {total_books}권 — 선정도서 ★{n_sel}권, 후보 {n_cand}권, 참고도서 {n_ref}권.</p>
     <details class="about">
       <summary>백북스 시즌4 책밤을 기획하며</summary>
       <p>24년 전, 우리는 세상을 알기 위해 책을 폈습니다. 하지만 이제는 클릭 한 번이면 책 한 권이 세 줄로 요약되고 AI가 정답을 말하는 시대가 되었습니다. 이제 우리는 AI가 결코 가질 수 없는 것을 나누기 위해 모입니다. ‘무언가를 지극히 좋아하는 마음’과 ‘소소한 덕질’에 대해 이야기합니다.</p>
