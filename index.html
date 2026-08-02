@@ -228,6 +228,27 @@ body[data-view="card"] .bquote, body[data-view="card"] .tag { display: none; }
 body[data-view="card"] .brow.hit .binfo { box-shadow: none; padding-left: 0; margin-left: 0; }
 body[data-view="card"] .brow.hit .bcover { outline: 3px solid var(--c); outline-offset: 2px; }
 
+.upd-status {
+  display: block; min-height: 16px; margin: 2px 0 0;
+  font-size: 12px; color: var(--star); text-align: right;
+}
+#tokenDlg {
+  max-width: 420px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface); color: var(--ink); padding: 20px 22px;
+  font-size: 13px; line-height: 1.6;
+}
+#tokenDlg::backdrop { background: rgba(0,0,0,0.45); }
+#tokenDlg h3 { margin: 0 0 8px; font-size: 15px; }
+#tokenDlg p { margin: 0 0 10px; color: var(--ink2); }
+#tokenDlg ol { margin: 0 0 12px; padding-left: 18px; color: var(--ink2); }
+#tokenDlg a { color: var(--star); }
+#tokenInput {
+  width: 100%; border: 1px solid var(--border); background: var(--page); color: var(--ink);
+  border-radius: 8px; padding: 7px 11px; font-size: 12.5px; font-family: inherit;
+  margin-bottom: 12px;
+}
+.dlg-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.dlg-alt { font-size: 11.5px; margin-left: auto; }
 .credit {
   margin: 18px 0 0; padding-top: 12px; font-size: 11.5px; color: var(--muted);
   border-top: 1px solid var(--grid); letter-spacing: 0.02em;
@@ -258,8 +279,10 @@ body[data-view="card"] .brow.hit .bcover { outline: 3px solid var(--c); outline-
         <button type="button" class="chip vchip" id="viewList" aria-pressed="false">목록</button>
         <button type="button" class="chip vchip" id="viewCard" aria-pressed="true">카드</button>
       </div>
+      <button type="button" class="chip" id="updBtn" title="노션에서 최신 내용 가져오기">↻ 업데이트</button>
       <button type="button" class="chip" id="themeBtn" title="테마">◐</button>
     </div>
+    <span class="upd-status" id="updStatus" role="status"></span>
     <p class="eyebrow">100BOOKS · Season 4</p>
     <h1>취향이 만나는 책밤</h1>
     <p class="sub">6번의 책밤에 오른 128권 — 선정도서 ★5권, 후보 20권, 참고목록 103권.</p>
@@ -1373,6 +1396,24 @@ body[data-view="card"] .brow.hit .bcover { outline: 3px solid var(--c); outline-
   <p class="credit"><b>백북스 〈취향이 만나는 책밤〉 아카이브</b> · 501회(2026.3.24)부터</p>
 </div>
 
+<dialog id="tokenDlg">
+  <h3>업데이트 권한 등록</h3>
+  <p>노션의 최신 내용을 가져오려면 GitHub 저장소의 갱신 작업을 실행할 권한이 필요합니다.
+  아래에서 만든 토큰을 한 번만 등록하면, 이후엔 버튼 한 번으로 업데이트됩니다.
+  토큰은 이 브라우저에만 저장됩니다.</p>
+  <ol>
+    <li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub에서 토큰 만들기</a>
+    — Repository access: <b>100books_bookery_night</b>만 선택, Permissions에서 <b>Actions: Read and write</b></li>
+    <li>생성된 토큰을 붙여넣기</li>
+  </ol>
+  <input type="password" id="tokenInput" placeholder="github_pat_..." autocomplete="off">
+  <div class="dlg-actions">
+    <button type="button" class="chip" id="tokenSave">저장하고 업데이트</button>
+    <button type="button" class="chip" id="tokenCancel">취소</button>
+    <a class="dlg-alt" href="https://github.com/jayreyafterdawn/100books_bookery_night/actions/workflows/update.yml" target="_blank" rel="noopener">토큰 없이 GitHub에서 직접 실행 →</a>
+  </div>
+</dialog>
+
 <script>
 (function () {
   var rows = Array.prototype.slice.call(document.querySelectorAll('.brow'));
@@ -1445,6 +1486,84 @@ body[data-view="card"] .brow.hit .bcover { outline: 3px solid var(--c); outline-
     if (t) { document.documentElement.setAttribute('data-theme', t); }
     else { document.documentElement.removeAttribute('data-theme'); }
   });
+
+  // ---- 노션 → 웹페이지 수동 업데이트 (GitHub Actions 원격 실행) ----
+  var REPO = 'jayreyafterdawn/100books_bookery_night';
+  var WORKFLOW = 'update.yml';
+  var updBtn = document.getElementById('updBtn');
+  var updSt = document.getElementById('updStatus');
+  var dlg = document.getElementById('tokenDlg');
+  function say(msg) { updSt.textContent = msg; }
+
+  function pollRun(startedAt) {
+    var timer = setInterval(function () {
+      fetch('https://api.github.com/repos/' + REPO + '/actions/runs?per_page=1&event=workflow_dispatch')
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var run = d.workflow_runs && d.workflow_runs[0];
+          if (!run || new Date(run.created_at).getTime() < startedAt - 60000) { return; }
+          if (run.status === 'completed') {
+            clearInterval(timer);
+            if (run.conclusion === 'success') {
+              say('갱신 완료 — 배포 반영을 기다렸다 새로고침합니다 (약 1분)');
+              setTimeout(function () { location.reload(); }, 60000);
+            } else {
+              say('실행 실패: ' + run.conclusion + ' — GitHub Actions 탭을 확인하세요');
+            }
+          } else {
+            say('노션에서 가져오는 중... (' + run.status + ')');
+          }
+          if (Date.now() - startedAt > 10 * 60 * 1000) {
+            clearInterval(timer);
+            say('시간 초과 — GitHub Actions 탭을 확인하세요');
+          }
+        })
+        .catch(function () {});
+    }, 15000);
+  }
+
+  function trigger(token) {
+    say('업데이트 요청 중...');
+    updBtn.disabled = true;
+    fetch('https://api.github.com/repos/' + REPO + '/actions/workflows/' + WORKFLOW + '/dispatches', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ ref: 'main' })
+    }).then(function (r) {
+      updBtn.disabled = false;
+      if (r.status === 204) {
+        say('실행됨 — 노션에서 가져오는 중...');
+        pollRun(Date.now());
+      } else if (r.status === 401 || r.status === 403) {
+        localStorage.removeItem('ghUpdateToken');
+        say('토큰이 유효하지 않습니다 — 버튼을 다시 눌러 재등록하세요');
+      } else {
+        say('요청 실패: HTTP ' + r.status);
+      }
+    }).catch(function () {
+      updBtn.disabled = false;
+      say('네트워크 오류 — 잠시 후 다시 시도하세요');
+    });
+  }
+
+  updBtn.addEventListener('click', function () {
+    var tok = localStorage.getItem('ghUpdateToken');
+    if (tok) { trigger(tok); }
+    else { dlg.showModal(); }
+  });
+  document.getElementById('tokenSave').addEventListener('click', function () {
+    var v = document.getElementById('tokenInput').value.trim();
+    if (!v) { return; }
+    localStorage.setItem('ghUpdateToken', v);
+    document.getElementById('tokenInput').value = '';
+    dlg.close();
+    trigger(v);
+  });
+  document.getElementById('tokenCancel').addEventListener('click', function () { dlg.close(); });
 
   apply();
 })();
