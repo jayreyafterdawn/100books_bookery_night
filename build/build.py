@@ -749,17 +749,16 @@ body[data-view="card"] .brow.hit .bcover {{ outline: 3px solid var(--c); outline
       var vis = 0;
       Array.prototype.forEach.call(g.querySelectorAll('.brow'), function (r) {{
         var on = gOn && statusOn[r.dataset.status];
-        r.style.display = on ? '' : 'none';
-        if (on) shown++;
-        var hit = on && q && r.dataset.q.indexOf(q) !== -1;
-        r.classList.toggle('hit', !!hit);
-        r.classList.toggle('dim', !!(on && q && !hit));
-        if (hit) hits++;
-        if (on) vis++;
+        var hit = q && r.dataset.q.indexOf(q) !== -1;
+        var show = on && (!q || hit);
+        r.style.display = show ? '' : 'none';
+        r.classList.toggle('hit', !!(show && q));
+        if (show) {{ shown++; vis++; }}
+        if (on && hit) {{ hits++; }}
       }});
       g.classList.toggle('empty', vis === 0);
     }});
-    countLbl.textContent = q ? hits + '권 일치 / ' + shown + '권' : shown + '권 표시 중';
+    countLbl.textContent = q ? hits + '권 일치' : shown + '권 표시 중';
   }}
 
   tchips.concat(gchips).forEach(function (c) {{
