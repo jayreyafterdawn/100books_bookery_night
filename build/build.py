@@ -430,13 +430,6 @@ for mt in DISPLAY:
     if mt["upcoming"]:
         up = f'<span class="m-up">다가오는 책밤 — 선정도서는 이날 밤에 정해집니다</span>'
     notice_html = ""
-    notice = mt.get("notice", "")
-    if notice:
-        if len(notice) <= 160:
-            notice_html = f'<p class="m-notice">{esc(notice)}</p>'
-        else:
-            notice_html = (f'<details class="m-noticebox"><summary>모임 공지 보기</summary>'
-                           f'<p class="m-notice">{esc(notice)}</p></details>')
     groups_html.append(f"""
   <section class="mgroup" id="m{mt['no']}" data-topic="{esc(mt['topic'])}" style="--cl:{mt['cl']};--cd:{mt['cd']}">
     <header class="mhead">
