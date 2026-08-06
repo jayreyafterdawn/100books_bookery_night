@@ -9,7 +9,7 @@
 실행: python3 build/build.py   (의존성: fonttools, pillow[CI])
 """
 import json, re, os, io, time, base64, html, subprocess, tempfile
-import urllib.request, urllib.parse
+import urllib.request, urllib.parse, urllib.error
 from datetime import date, datetime
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -140,6 +140,7 @@ for rid, row in meet_rows.items():
         "date": p.get("모임 날짜", ""),
         "topic_key": p.get("주제", "").strip(),
         "selected_txt": p.get("선정도서", "").strip(),
+        "notice": p.get("공지글", "").strip(),
     })
 meetings.sort(key=lambda x: x["no"])
 
@@ -161,8 +162,13 @@ for mt in meetings:
 meetings = [m for m in meetings if m["books"]]
 
 # ---------------------------------------------------------------- covers
-COVER_CACHE = os.path.join(ROOT, "covers.json")
-covers = json.load(open(COVER_CACHE)) if os.path.exists(COVER_CACHE) else {}
+# 표지는 covers/<rid>.jpg 개별 파일로 저장 (HTML에 내장하지 않음 → 첫 로드 경량화).
+# covers_meta.json에 원본 이미지 서명(블록id|첨부id)을 기록해 노션에서 표지를
+# 교체하면 자동으로 다시 받는다.
+COVERS_DIR = os.path.normpath(os.path.join(ROOT, "..", "covers"))
+os.makedirs(COVERS_DIR, exist_ok=True)
+META_CACHE = os.path.join(ROOT, "covers_meta.json")
+covers_meta = json.load(open(META_CACHE)) if os.path.exists(META_CACHE) else {}
 
 def resize_jpeg(raw):
     """이미지 바이트 → 높이 최대 360px JPEG. Pillow 우선, 없으면 sips(macOS)."""
@@ -218,31 +224,68 @@ def first_image_block(page_id):
             return r
     return None
 
-new_covers = 0
+def notion_retry(fn, *args):
+    """429 대비 백오프 재시도."""
+    for attempt in range(3):
+        try:
+            return fn(*args)
+        except urllib.error.HTTPError as e:
+            if e.code == 429 and attempt < 2:
+                time.sleep(12 * (attempt + 1))
+                continue
+            raise
+
+new_covers = replaced = 0
+valid_rids = set()
 for b in books:
     rid = b["_rid"]
-    if rid in covers:
-        continue
+    valid_rids.add(rid)
+    path = os.path.join(COVERS_DIR, f"{rid}.jpg")
     try:
-        img = first_image_block(rid)
+        img = notion_retry(first_image_block, rid)
+        time.sleep(0.35)
         if not img:
             continue
         src = (img.get("properties", {}).get("source") or [[""]])[0][0]
         if not src:
+            continue
+        sig = img["id"] + "|" + src
+        have = os.path.exists(path)
+        known = covers_meta.get(rid)
+        if have and known == sig:
+            continue
+        if have and known is None:
+            covers_meta[rid] = sig  # 기존 파일을 현재 이미지로 채택
             continue
         url = ("https://www.notion.so/image/" + urllib.parse.quote(src, safe="")
                + "?table=block&id=" + img["id"] + "&cache=v2")
         req = urllib.request.Request(url, headers=UA)
         with urllib.request.urlopen(req, timeout=60) as r:
             raw = r.read()
-        covers[rid] = "data:image/jpeg;base64," + base64.b64encode(resize_jpeg(raw)).decode()
-        new_covers += 1
-        time.sleep(0.8)
+        with open(path, "wb") as f:
+            f.write(resize_jpeg(raw))
+        if have:
+            replaced += 1
+        else:
+            new_covers += 1
+        covers_meta[rid] = sig
+        time.sleep(0.5)
     except Exception as e:
         print(f"  표지 실패: {b['책 제목']} — {str(e)[:60]}")
-if new_covers:
-    json.dump(covers, open(COVER_CACHE, "w"))
-print(f"표지: 캐시 {len(covers)}권 (신규 {new_covers})")
+
+# 노션에서 사라진 책의 표지 파일·메타 정리
+for fn in os.listdir(COVERS_DIR):
+    rid = fn[:-4]
+    if fn.endswith(".jpg") and rid not in valid_rids:
+        os.unlink(os.path.join(COVERS_DIR, fn))
+        covers_meta.pop(rid, None)
+json.dump(covers_meta, open(META_CACHE, "w"))
+
+def cover_path(rid):
+    return f"covers/{rid}.jpg" if os.path.exists(os.path.join(COVERS_DIR, f"{rid}.jpg")) else None
+
+n_files = len([f for f in os.listdir(COVERS_DIR) if f.endswith(".jpg")])
+print(f"표지: 파일 {n_files}권 (신규 {new_covers}, 교체 {replaced})")
 
 # ---------------------------------------------------------------- aladin
 ALADIN_CACHE = os.path.join(ROOT, "aladin.json")
@@ -354,7 +397,7 @@ for mt in DISPLAY:
         else:
             link = ("https://www.aladin.co.kr/search/wsearchresult.aspx?SearchTarget=Book&SearchWord="
                     + urllib.parse.quote(f"{title} {author}".strip()))
-        uri = covers.get(b["_rid"])
+        uri = cover_path(b["_rid"])
         if uri:
             cover = (f'<a class="bcover has-img" href="{link}" target="_blank" rel="noopener" '
                      f'aria-label="{esc(title)} — 알라딘에서 보기"><img class="cv-img" src="{uri}" alt="" loading="lazy"></a>')
@@ -372,14 +415,30 @@ for mt in DISPLAY:
         </div>
       </li>"""
 
-    rows_html = "".join([row_html(b, "sel") for b in sel] +
-                        [row_html(b, "cand") for b in cand] +
-                        [row_html(b, "ref") for b in refs])
+    main_html = "".join([row_html(b, "sel") for b in sel] +
+                        [row_html(b, "cand") for b in cand])
+    refs_html = "".join(row_html(b, "ref") for b in refs)
+    ref_block = ""
+    if refs:
+        ref_block = f"""
+    <details class="refbox">
+      <summary>참고도서 <span class="count">{len(refs)}권</span><span class="chev" aria-hidden="true"></span></summary>
+      <ul class="books">{refs_html}
+      </ul>
+    </details>"""
     up = ""
     if mt["upcoming"]:
         up = f'<span class="m-up">다가오는 책밤 — 선정도서는 이날 밤에 정해집니다</span>'
+    notice_html = ""
+    notice = mt.get("notice", "")
+    if notice:
+        if len(notice) <= 160:
+            notice_html = f'<p class="m-notice">{esc(notice)}</p>'
+        else:
+            notice_html = (f'<details class="m-noticebox"><summary>모임 공지 보기</summary>'
+                           f'<p class="m-notice">{esc(notice)}</p></details>')
     groups_html.append(f"""
-  <section class="mgroup" data-topic="{esc(mt['topic'])}" style="--cl:{mt['cl']};--cd:{mt['cd']}">
+  <section class="mgroup" id="m{mt['no']}" data-topic="{esc(mt['topic'])}" style="--cl:{mt['cl']};--cd:{mt['cd']}">
     <header class="mhead">
       <span class="sw" aria-hidden="true"></span>
       <span class="m-badge">제{mt['no']}회</span>
@@ -387,9 +446,10 @@ for mt in DISPLAY:
       <time class="m-date" datetime="{mt['date']}">{kdate(mt['date'])}</time>
       <span class="m-n">{len(rows)}권</span>
       {up}
+      {notice_html}
     </header>
-    <ul class="books">{rows_html}
-    </ul>
+    <ul class="books">{main_html}
+    </ul>{ref_block}
   </section>""")
 
 total_books = sum(topic_counts.values())
@@ -400,6 +460,11 @@ topic_chips = "".join(
     for mt in DISPLAY) + (
     '<button type="button" class="chip reset" id="allTopicsOn">모두 선택</button>'
     '<button type="button" class="chip reset" id="allTopicsOff">모두 해제</button>')
+
+jumps_html = '<span class="lbl">바로가기</span>' + "".join(
+    f'<a class="jlink" href="#m{mt["no"]}" style="--cl:{mt["cl"]};--cd:{mt["cd"]}">'
+    f'<span class="nav-dot" aria-hidden="true"></span>제{mt["no"]}회 {esc(mt["topic"])}</a>'
+    for mt in DISPLAY)
 
 status_chips = (
     f'<button type="button" class="chip gchip" data-status="sel" aria-pressed="true">★ 선정도서 <span class="n">{n_sel}</span></button>'
@@ -424,8 +489,9 @@ font.save(buf)
 font_b64 = base64.b64encode(buf.getvalue()).decode()
 
 # ---------------------------------------------------------------- HTML
-page = f"""<title>백북스 시즌 4 — 취향이 만나는 책밤</title>
+page = f"""<title>백북스 시즌4, 책밤</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20y='0.9em'%20font-size='90'%3E%F0%9F%93%96%3C/text%3E%3C/svg%3E">
 <style>
 @font-face {{
   font-family: "GowunBatang";
@@ -467,6 +533,8 @@ page = f"""<title>백북스 시즌 4 — 취향이 만나는 책밤</title>
 
 * {{ box-sizing: border-box; }}
 html, body {{ margin: 0; }}
+html {{ scroll-behavior: smooth; }}
+@media (prefers-reduced-motion: reduce) {{ html {{ scroll-behavior: auto; }} }}
 body {{
   background: var(--page); color: var(--ink);
   font-family: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
@@ -526,6 +594,22 @@ details.about p {{ margin: 8px 0; }}
 .lbl {{ font-size: 12px; color: var(--muted); margin-right: 2px; }}
 .count {{ font-size: 12px; color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }}
 
+/* ---- 바로가기 ---- */
+.jumps {{ display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin: 0 0 16px; }}
+.jumps .lbl {{ font-size: 12px; color: var(--muted); }}
+.jlink {{
+  display: inline-flex; align-items: center; gap: 7px;
+  color: var(--ink2); text-decoration: none; font-size: 12.5px; padding: 3px 2px;
+  --c: var(--cl);
+}}
+.jlink:hover {{ color: var(--c); }}
+.jlink:focus-visible {{ outline: 2px solid var(--c); outline-offset: 2px; border-radius: 2px; }}
+.nav-dot {{ width: 9px; height: 9px; border-radius: 50%; background: var(--c); flex: none; }}
+@media (prefers-color-scheme: dark) {{ .jlink {{ --c: var(--cd); }} }}
+:root[data-theme="dark"] .jlink {{ --c: var(--cd); }}
+:root[data-theme="light"] .jlink {{ --c: var(--cl); }}
+.mgroup {{ scroll-margin-top: 16px; }}
+
 /* ---- board ---- */
 .mgroup {{
   background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
@@ -551,6 +635,34 @@ details.about p {{ margin: 8px 0; }}
 .m-date {{ font-size: 13px; color: var(--ink2); font-variant-numeric: tabular-nums; }}
 .m-n {{ font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; margin-left: auto; }}
 .m-up {{ font-size: 12.5px; color: var(--star); flex-basis: 100%; }}
+.m-notice {{
+  flex-basis: 100%; margin: 4px 0 0; font-size: 13px; color: var(--ink2);
+  line-height: 1.65; white-space: pre-line; max-width: 74ch;
+}}
+details.m-noticebox {{ flex-basis: 100%; margin: 2px 0 0; }}
+details.m-noticebox summary {{
+  cursor: pointer; font-size: 12px; color: var(--muted); user-select: none;
+}}
+details.m-noticebox summary:hover {{ color: var(--ink2); }}
+
+/* ---- 참고도서 접기 ---- */
+details.refbox {{ border-top: 1px solid var(--grid); }}
+details.refbox summary {{
+  cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em;
+  color: var(--muted); user-select: none;
+}}
+details.refbox summary::-webkit-details-marker {{ display: none; }}
+details.refbox summary:hover {{ color: var(--ink2); }}
+details.refbox summary:focus-visible {{ outline: 2px solid var(--c); outline-offset: -2px; }}
+details.refbox .count {{ margin-left: 0; }}
+.chev {{
+  width: 7px; height: 7px; margin-left: 2px;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translateY(-1px);
+}}
+details.refbox[open] .chev {{ transform: rotate(-135deg) translateY(1px); }}
+details.refbox > .books {{ border-top: 1px solid color-mix(in srgb, var(--grid) 55%, transparent); }}
 
 .books {{ list-style: none; margin: 0; padding: 0; }}
 .brow {{
@@ -679,12 +791,12 @@ body[data-view="card"] .brow.hit .bcover {{ outline: 3px solid var(--c); outline
   .wrap {{ padding: 14px 12px 40px; }}
   .top-actions {{ position: static; margin: 0 0 10px; display: flex; }}
   #searchBox {{ flex: 1 1 110px; min-width: 0; }}
-  .controls {{
+  .controls, .jumps {{
     flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }}
-  .controls::-webkit-scrollbar {{ display: none; }}
-  .chip, .lbl {{ white-space: nowrap; flex: 0 0 auto; }}
+  .controls::-webkit-scrollbar, .jumps::-webkit-scrollbar {{ display: none; }}
+  .chip, .lbl, .jlink {{ white-space: nowrap; flex: 0 0 auto; }}
   .count {{ flex: 0 0 auto; margin-left: 8px; }}
   .st {{ flex-basis: 44px; }}
   .m-n {{ display: none; }}
@@ -715,6 +827,7 @@ body[data-view="card"] .brow.hit .bcover {{ outline: 3px solid var(--c); outline
 
   <div class="controls" id="topicChips">{topic_chips}</div>
   <div class="controls status-row" id="statusChips">{status_chips}</div>
+  <nav class="jumps" aria-label="회차 바로가기">{jumps_html}</nav>
 {"".join(groups_html)}
 
   <p class="credit"><b>백북스 〈취향이 만나는 책밤〉 아카이브</b> · <a class="credit-ig" href="https://www.instagram.com/100books_bookery_night" target="_blank" rel="noopener">@100books_bookery_night</a></p>
@@ -758,16 +871,24 @@ body[data-view="card"] .brow.hit .bcover {{ outline: 3px solid var(--c); outline
     var shown = 0, hits = 0;
     groups.forEach(function (g) {{
       var gOn = topicsOn[g.dataset.topic];
-      var vis = 0;
+      var vis = 0, refVis = 0;
       Array.prototype.forEach.call(g.querySelectorAll('.brow'), function (r) {{
         var on = gOn && statusOn[r.dataset.status];
         var hit = q && r.dataset.q.indexOf(q) !== -1;
         var show = on && (!q || hit);
         r.style.display = show ? '' : 'none';
         r.classList.toggle('hit', !!(show && q));
-        if (show) {{ shown++; vis++; }}
+        if (show) {{
+          shown++; vis++;
+          if (r.dataset.status === 'ref') {{ refVis++; }}
+        }}
         if (on && hit) {{ hits++; }}
       }});
+      var rb = g.querySelector('details.refbox');
+      if (rb) {{
+        rb.style.display = refVis > 0 ? '' : 'none';
+        if (q) {{ rb.open = true; }}
+      }}
       g.classList.toggle('empty', vis === 0);
     }});
     countLbl.textContent = q ? hits + '권 일치' : shown + '권 표시 중';
@@ -909,3 +1030,71 @@ full = '<!doctype html>\n<html lang="ko">\n<head>\n<meta charset="utf-8">\n' + o
 with open(OUT, "w") as f:
     f.write(full)
 print(f"빌드 완료: {OUT} ({len(full)} bytes) — 모임 {len(meetings)}, 책 {total_books}권")
+
+# ---------------------------------------------------------------- og-image
+# SNS 공유 썸네일: 최신 회차 우선으로 선정도서 + 후보 표지 10권을 책장처럼 배치.
+# 매 빌드마다 재생성하므로 새 회차가 쌓이면 썸네일도 함께 갱신된다.
+def make_og_image():
+    try:
+        from PIL import Image, ImageDraw, ImageFont, ImageFilter
+    except ImportError:
+        print("og-image: Pillow 없음 — 건너뜀 (기존 이미지 유지)")
+        return
+    W, H = 1200, 630
+    BG = (13, 13, 13)
+    INK = (233, 229, 216)
+    MUTED = (137, 135, 129)
+    img = Image.new("RGB", (W, H), BG)
+    draw = ImageDraw.Draw(img)
+
+    shelf_ids = []
+    for status in ("sel", "cand"):
+        for mt in DISPLAY:
+            for b in mt["books"]:
+                if classify(b) == status and cover_path(b["_rid"]):
+                    shelf_ids.append(b["_rid"])
+    shelf_ids = shelf_ids[:10]
+
+    cw, ch = 150, 218
+    gap = 14
+    total_w = len(shelf_ids) * cw + (len(shelf_ids) - 1) * gap
+    x = (W - total_w) // 2
+    y = H - ch - 48
+    for rid in shelf_ids:
+        cv = Image.open(os.path.join(COVERS_DIR, f"{rid}.jpg")).convert("RGB")
+        scale = max(cw / cv.width, ch / cv.height)
+        cv = cv.resize((int(cv.width * scale) + 1, int(cv.height * scale) + 1), Image.LANCZOS)
+        left = (cv.width - cw) // 2
+        top = (cv.height - ch) // 2
+        cv = cv.crop((left, top, left + cw, top + ch))
+        sh = Image.new("RGBA", (cw + 24, ch + 24), (0, 0, 0, 0))
+        ImageDraw.Draw(sh).rounded_rectangle([12, 14, cw + 12, ch + 16], 6, fill=(0, 0, 0, 160))
+        sh = sh.filter(ImageFilter.GaussianBlur(7))
+        img.paste(Image.new("RGB", sh.size, BG), (x - 12, y - 12), sh)
+        img.paste(cv, (x, y))
+        x += cw + gap
+
+    draw.rectangle([60, H - 40, W - 60, H - 36], fill=(51, 55, 72))
+
+    font_path = os.path.join(ROOT, "GowunBatang-Bold.ttf")
+    font_title = ImageFont.truetype(font_path, 84)
+    font_sub = ImageFont.truetype(font_path, 30)
+    title = "백북스 시즌4, 책밤"
+    tw = draw.textlength(title, font=font_title)
+    draw.text(((W - tw) / 2, 96), title, font=font_title, fill=INK)
+    sub = "취향이 만나는 책밤 — 선정도서 아카이브"
+    sw = draw.textlength(sub, font=font_sub)
+    draw.text(((W - sw) / 2, 214), sub, font=font_sub, fill=MUTED)
+
+    colors = [(mt["cl"]) for mt in DISPLAY][:6]
+    seg_w = 300 // max(1, len(colors))
+    sx = (W - seg_w * len(colors)) // 2
+    for i, c in enumerate(colors):
+        rgb = tuple(int(c[j:j + 2], 16) for j in (1, 3, 5))
+        draw.rectangle([sx + i * seg_w, 278, sx + (i + 1) * seg_w - 2, 283], fill=rgb)
+
+    out_png = os.path.normpath(os.path.join(ROOT, "..", "og-image.png"))
+    img.save(out_png, "PNG", optimize=True)
+    print(f"og-image 갱신: {len(shelf_ids)}권 표지 사용")
+
+make_og_image()

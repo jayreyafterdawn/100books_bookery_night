@@ -23,7 +23,9 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install fonttools pillow
+        # 로컬 개발 환경과 동일 버전으로 고정 — 빌드 산출물 바이트가 달라져
+        # 커밋이 반복 생성되는 것을 방지
+        run: pip install fonttools==4.60.2 pillow==11.3.0
 
       - name: Build from Notion
         run: python build/build.py
