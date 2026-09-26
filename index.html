@@ -341,7 +341,7 @@ body[data-view="card"] .brow.hit .bcover { outline: 3px solid var(--c); outline-
     <span class="upd-status" id="updStatus" role="status"></span>
     <p class="eyebrow">100BOOKS · Season 4</p>
     <h1>백북스 시즌4, 책밤</h1>
-    <p class="sub">7번의 책밤에 오른 181권 — 선정도서 ★6권, 후보 22권, 참고도서 153권.</p>
+    <p class="sub">7번의 책밤에 오른 181권 — 선정도서 ★7권, 후보 21권, 참고도서 153권.</p>
     <details class="about">
       <summary>백북스 시즌4 책밤을 기획하며</summary>
       <p>24년 전, 우리는 세상을 알기 위해 책을 폈습니다. 하지만 이제는 클릭 한 번이면 책 한 권이 세 줄로 요약되고 AI가 정답을 말하는 시대가 되었습니다. 이제 우리는 AI가 결코 가질 수 없는 것을 나누기 위해 모입니다. ‘무언가를 지극히 좋아하는 마음’과 ‘소소한 덕질’에 대해 이야기합니다.</p>
@@ -350,7 +350,7 @@ body[data-view="card"] .brow.hit .bcover { outline: 3px solid var(--c); outline-
   </header>
 
   <div class="controls" id="topicChips"><button type="button" class="chip tchip" data-topic="재즈" aria-pressed="true" style="--cl:#e34948;--cd:#e66767"><span class="sw"></span>재즈<span class="n">50</span></button><button type="button" class="chip tchip" data-topic="르네상스" aria-pressed="true" style="--cl:#eb6834;--cd:#d95926"><span class="sw"></span>르네상스<span class="n">31</span></button><button type="button" class="chip tchip" data-topic="여름" aria-pressed="true" style="--cl:#008ba8;--cd:#1d9aae"><span class="sw"></span>여름<span class="n">17</span></button><button type="button" class="chip tchip" data-topic="세기말 빈" aria-pressed="true" style="--cl:#c98500;--cd:#eda100"><span class="sw"></span>세기말 빈<span class="n">21</span></button><button type="button" class="chip tchip" data-topic="영화음악" aria-pressed="true" style="--cl:#4a3aa7;--cd:#9085e9"><span class="sw"></span>영화음악<span class="n">27</span></button><button type="button" class="chip tchip" data-topic="인공지능" aria-pressed="true" style="--cl:#2a78d6;--cd:#3987e5"><span class="sw"></span>인공지능<span class="n">23</span></button><button type="button" class="chip tchip" data-topic="서재" aria-pressed="true" style="--cl:#1baf7a;--cd:#199e70"><span class="sw"></span>서재<span class="n">12</span></button><button type="button" class="chip reset" id="allTopicsOn">모두 선택</button><button type="button" class="chip reset" id="allTopicsOff">모두 해제</button></div>
-  <div class="controls status-row" id="statusChips"><button type="button" class="chip gchip" data-status="sel" aria-pressed="true">★ 선정도서 <span class="n">6</span></button><button type="button" class="chip gchip" data-status="cand" aria-pressed="true">후보 <span class="n">22</span></button><button type="button" class="chip gchip" data-status="ref" aria-pressed="true">참고도서 <span class="n">153</span></button><button type="button" class="chip reset" id="allStatusOn">모두 선택</button><button type="button" class="chip reset" id="allStatusOff">모두 해제</button><span class="count" id="countLbl"></span></div>
+  <div class="controls status-row" id="statusChips"><button type="button" class="chip gchip" data-status="sel" aria-pressed="true">★ 선정도서 <span class="n">7</span></button><button type="button" class="chip gchip" data-status="cand" aria-pressed="true">후보 <span class="n">21</span></button><button type="button" class="chip gchip" data-status="ref" aria-pressed="true">참고도서 <span class="n">153</span></button><button type="button" class="chip reset" id="allStatusOn">모두 선택</button><button type="button" class="chip reset" id="allStatusOff">모두 해제</button><span class="count" id="countLbl"></span></div>
   <nav class="jumps" aria-label="회차 바로가기"><span class="lbl">바로가기</span><a class="jlink" href="#m507" style="--cl:#e34948;--cd:#e66767"><span class="nav-dot" aria-hidden="true"></span>제507회 재즈</a><a class="jlink" href="#m506" style="--cl:#eb6834;--cd:#d95926"><span class="nav-dot" aria-hidden="true"></span>제506회 르네상스</a><a class="jlink" href="#m505" style="--cl:#008ba8;--cd:#1d9aae"><span class="nav-dot" aria-hidden="true"></span>제505회 여름</a><a class="jlink" href="#m504" style="--cl:#c98500;--cd:#eda100"><span class="nav-dot" aria-hidden="true"></span>제504회 세기말 빈</a><a class="jlink" href="#m503" style="--cl:#4a3aa7;--cd:#9085e9"><span class="nav-dot" aria-hidden="true"></span>제503회 영화음악</a><a class="jlink" href="#m502" style="--cl:#2a78d6;--cd:#3987e5"><span class="nav-dot" aria-hidden="true"></span>제502회 인공지능</a><a class="jlink" href="#m501" style="--cl:#1baf7a;--cd:#199e70"><span class="nav-dot" aria-hidden="true"></span>제501회 서재</a></nav>
 
   <section class="mgroup" id="m507" data-topic="재즈" style="--cl:#e34948;--cd:#e66767">
@@ -364,6 +364,14 @@ body[data-view="card"] .brow.hit .bcover { outline: 3px solid var(--c); outline-
       
     </header>
     <ul class="books">
+      <li class="brow sel" data-status="sel" data-q="재즈, 끝나지 않는 물음 남예지 재즈 미학 연구자가 쓴 나긋나긋한 인문학적 에세이. 재즈의 본질과 미학에 대해 좋은 힌트를 제시한다." title="재즈 미학 연구자가 쓴 나긋나긋한 인문학적 에세이. 재즈의 본질과 미학에 대해 좋은 힌트를 제시한다.">
+        <span class="st st-sel">★ 선정</span>
+        <a class="bcover has-img" href="https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=292598275" target="_blank" rel="noopener" aria-label="재즈, 끝나지 않는 물음 — 알라딘에서 보기"><img class="cv-img" src="covers/3cd14bac-e300-8006-8942-f36affda83d6.jpg" alt="" loading="lazy"></a>
+        <div class="binfo">
+          <p class="bline"><a class="btitle" href="https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=292598275" target="_blank" rel="noopener">재즈, 끝나지 않는 물음</a><span class="bauthor">남예지</span></p>
+          <p class="bquote">재즈 미학 연구자가 쓴 나긋나긋한 인문학적 에세이. 재즈의 본질과 미학에 대해 좋은 힌트를 제시한다.</p>
+        </div>
+      </li>
       <li class="brow cand" data-status="cand" data-q="jazz it up! 남무성 재즈 출판 시장에서의 전설적인 히트작, 만화로 그린 재즈 입문서 jazz it up 1,2권을 묶어 개정판을 냈다. 입문자와 마니아 모두에게 사랑받는 책." title="재즈 출판 시장에서의 전설적인 히트작, 만화로 그린 재즈 입문서 Jazz It Up 1,2권을 묶어 개정판을 냈다. 입문자와 마니아 모두에게 사랑받는 책.">
         <span class="st st-cand">후보</span>
         <a class="bcover has-img" href="https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=132200228" target="_blank" rel="noopener" aria-label="Jazz It Up! — 알라딘에서 보기"><img class="cv-img" src="covers/3c814bac-e300-80d9-af70-f5c6ad57b08e.jpg" alt="" loading="lazy"></a>
@@ -378,14 +386,6 @@ body[data-view="card"] .brow.hit .bcover { outline: 3px solid var(--c); outline-
         <div class="binfo">
           <p class="bline"><a class="btitle" href="https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=380814417" target="_blank" rel="noopener">블루의 세 가지 빛깔</a><span class="bauthor">제임스 캐플런</span></p>
           <p class="bquote">- 마일스 데이비스, 존 콜트레인, 빌 에번스를 중심으로 쓴 재즈 황금시대(1940년대와 1950년대)의 생생한 기록. 비밥, 하드밥, 쿨재즈 마니아들에게 추천</p>
-        </div>
-      </li>
-      <li class="brow cand" data-status="cand" data-q="재즈, 끝나지 않는 물음 남예지 재즈 미학 연구자가 쓴 나긋나긋한 인문학적 에세이. 재즈의 본질과 미학에 대해 좋은 힌트를 제시한다." title="재즈 미학 연구자가 쓴 나긋나긋한 인문학적 에세이. 재즈의 본질과 미학에 대해 좋은 힌트를 제시한다.">
-        <span class="st st-cand">후보</span>
-        <a class="bcover has-img" href="https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=292598275" target="_blank" rel="noopener" aria-label="재즈, 끝나지 않는 물음 — 알라딘에서 보기"><img class="cv-img" src="covers/3cd14bac-e300-8006-8942-f36affda83d6.jpg" alt="" loading="lazy"></a>
-        <div class="binfo">
-          <p class="bline"><a class="btitle" href="https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=292598275" target="_blank" rel="noopener">재즈, 끝나지 않는 물음</a><span class="bauthor">남예지</span></p>
-          <p class="bquote">재즈 미학 연구자가 쓴 나긋나긋한 인문학적 에세이. 재즈의 본질과 미학에 대해 좋은 힌트를 제시한다.</p>
         </div>
       </li>
       <li class="brow cand" data-status="cand" data-q="재즈를 시작해 이락 입문서로서의 미덕을 갖췄다. 얕고 간결하게. 하지만 다루는 내용이나 시기의 스펙트럼이 꽤 넓다." title="입문서로서의 미덕을 갖췄다. 얕고 간결하게. 하지만 다루는 내용이나 시기의 스펙트럼이 꽤 넓다.">
